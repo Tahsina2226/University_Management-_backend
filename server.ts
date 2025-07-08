@@ -15,27 +15,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const users = [
-  {
-    email: "admin@university.com",
-    password: "password123",
-    role: "admin",
-  },
-  {
-    email: "user@university.com",
-    password: "userpass",
-    role: "user",
-  },
-];
-
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_here";
 
-interface JwtPayload {
+export interface JwtPayload {
   email: string;
   role: string;
 }
 
-const authenticateToken = (
+export const authenticateToken = (
   req: Request & { user?: JwtPayload },
   res: Response,
   next: NextFunction
@@ -56,7 +43,43 @@ const authenticateToken = (
   });
 };
 
-app.post("/api/admin/register", (req: Request, res: Response) => {
+export const authorizeAdmin = (
+  req: Request & { user?: JwtPayload },
+  res: Response,
+  next: NextFunction
+): void => {
+  if (req.user?.role !== "admin") {
+    res.status(403).json({ message: "Access denied. Admins only." });
+    return;
+  }
+  next();
+};
+
+// In-memory users (তুমি চাইলে DB তেও রাখতে পারো)
+const users = [
+  {
+    email: "admin@university.com",
+    password: "password123",
+    role: "admin",
+  },
+  {
+    email: "user@university.com",
+    password: "userpass",
+    role: "user",
+  },
+];
+
+// ইন-মেমোরি enrollments (তুমি চাইলে DB তেও রাখতে পারো)
+interface Enrollment {
+  userEmail: string;
+  batchId: number;
+  batchDepartment: string;
+}
+const enrollments: Enrollment[] = [];
+
+// --- AUTH ROUTES ---
+
+app.post("/api/admin/register", (req: Request, res: Response): void => {
   const { name, email, password, role } = req.body;
   if (!name || !email || !password || !role) {
     res.status(400).json({ message: "All fields are required" });
@@ -89,11 +112,70 @@ app.post("/api/admin/login", (req: Request, res: Response): void => {
   res.json({ token, role: foundUser.role });
 });
 
-app.use("/api/routines", routineRoutes);
+// --- ROUTES WITH AUTHENTICATION ---
+
+// Add authenticateToken middleware here for routineRoutes
+app.use("/api/routines", authenticateToken, routineRoutes);
+
 app.use("/api/events", eventRoutes);
 app.use("/api/news", newsRoutes);
 app.use("/api/batches", authenticateToken, batchRoutes);
 app.use("/api/enroll", authenticateToken, enrollRoutes);
+
+app.post(
+  "/api/enroll",
+  authenticateToken,
+  (req: Request & { user?: JwtPayload }, res: Response): void => {
+    const userEmail = req.user?.email;
+    const { batchId, batchDepartment } = req.body;
+
+    if (!userEmail || !batchId || !batchDepartment) {
+      res.status(400).json({ message: "Missing enrollment data" });
+      return;
+    }
+
+    const existingEnrollment = enrollments.find(
+      (e) => e.userEmail === userEmail
+    );
+    if (existingEnrollment) {
+      if (existingEnrollment.batchDepartment !== batchDepartment) {
+        res.status(400).json({
+          message: `Already enrolled in department "${existingEnrollment.batchDepartment}". Cannot enroll in another.`,
+        });
+        return;
+      } else {
+        res.status(400).json({
+          message: `Already enrolled in this batch.`,
+        });
+        return;
+      }
+    }
+
+    enrollments.push({ userEmail, batchId, batchDepartment });
+    res.json({ message: "Enrollment successful" });
+  }
+);
+
+app.get(
+  "/api/enroll/:email",
+  authenticateToken,
+  (req: Request & { user?: JwtPayload }, res: Response): void => {
+    const email = req.params.email;
+
+    if (!email) {
+      res.status(400).json({ message: "Email is required" });
+      return;
+    }
+
+    const enrollment = enrollments.find((e) => e.userEmail === email);
+    if (!enrollment) {
+      res.status(404).json({ message: "No enrollment found for user" });
+      return;
+    }
+
+    res.json(enrollment);
+  }
+);
 
 app.get("/", (_req: Request, res: Response): void => {
   res.send("University Management API Running");
