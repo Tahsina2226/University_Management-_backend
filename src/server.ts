@@ -30,7 +30,16 @@ pool
   .catch((err) => console.error("❌ PostgreSQL connection error:", err));
 
 const app = express();
-app.use(cors());
+
+app.use(
+  cors({
+    origin: [
+      "https://course-event-management.vercel.app",
+      "http://localhost:5173",
+    ],
+  })
+);
+
 app.use(express.json());
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_here";
