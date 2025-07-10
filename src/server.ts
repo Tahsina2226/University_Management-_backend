@@ -37,6 +37,8 @@ app.use(
       "https://course-event-management.vercel.app",
       "http://localhost:5173",
     ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
@@ -74,7 +76,7 @@ export const authenticateToken = async (
     const user = jwt.verify(token, JWT_SECRET) as JwtPayload;
     req.user = user;
     next();
-  } catch (err) {
+  } catch {
     res.status(403).json({ message: "Invalid or expired token" });
   }
 };
@@ -254,9 +256,11 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: "Something went wrong!" });
 });
 
-// app.listen(PORT, () => {
-//   console.log(`✅ Server running on port ${PORT}`);
-//   console.log(`🔗 http://localhost:${PORT}`);
-// });
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`🔗 http://localhost:${PORT}`);
+});
 
 export default app;

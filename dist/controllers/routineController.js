@@ -14,10 +14,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteRoutine = exports.updateRoutine = exports.createRoutine = exports.getRoutines = void 0;
 const db_1 = __importDefault(require("../db"));
-// ✅ Get All Routines
 const getRoutines = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const department = req.query.department;
     try {
-        const result = yield db_1.default.query("SELECT * FROM routines ORDER BY id DESC");
+        let result;
+        if (department) {
+            result = yield db_1.default.query(`SELECT r.* FROM routines r
+         JOIN batches b ON r.batch_id = b.id
+         WHERE b.department = $1
+         ORDER BY r.id DESC`, [department]);
+        }
+        else {
+            result = yield db_1.default.query("SELECT * FROM routines ORDER BY id DESC");
+        }
         res.json(result.rows);
     }
     catch (err) {
@@ -26,7 +35,6 @@ const getRoutines = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
     }
 });
 exports.getRoutines = getRoutines;
-// ✅ Create Routine
 const createRoutine = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { course_name, day, time, room, batch_id } = req.body;
     try {
@@ -39,12 +47,11 @@ const createRoutine = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     }
 });
 exports.createRoutine = createRoutine;
-// ✅ Update Routine
 const updateRoutine = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
     const { course_name, day, time, room, batch_id } = req.body;
     try {
-        const result = yield db_1.default.query("UPDATE routines SET course_name = $1, day = $2, time = $3, room = $4, batch_id = $5 WHERE id = $6 RETURNING *", [course_name, day, time, room, batch_id, id]);
+        const result = yield db_1.default.query("UPDATE routines SET course_name=$1, day=$2, time=$3, room=$4, batch_id=$5 WHERE id=$6 RETURNING *", [course_name, day, time, room, batch_id, id]);
         if (result.rows.length === 0) {
             res.status(404).json({ error: "Routine not found" });
             return;
@@ -57,7 +64,6 @@ const updateRoutine = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     }
 });
 exports.updateRoutine = updateRoutine;
-// ✅ Delete Routine
 const deleteRoutine = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
     try {

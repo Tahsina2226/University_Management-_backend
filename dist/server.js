@@ -39,7 +39,14 @@ pool
     .then(() => console.log("✅ PostgreSQL connected"))
     .catch((err) => console.error("❌ PostgreSQL connection error:", err));
 const app = (0, express_1.default)();
-app.use((0, cors_1.default)());
+app.use((0, cors_1.default)({
+    origin: [
+        "https://course-event-management.vercel.app",
+        "http://localhost:5173",
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+}));
 app.use(express_1.default.json());
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_here";
 const authenticateToken = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
@@ -54,7 +61,7 @@ const authenticateToken = (req, res, next) => __awaiter(void 0, void 0, void 0, 
         req.user = user;
         next();
     }
-    catch (err) {
+    catch (_a) {
         res.status(403).json({ message: "Invalid or expired token" });
     }
 });
@@ -185,8 +192,9 @@ app.use((err, _req, res, _next) => {
     console.error(err.stack);
     res.status(500).json({ error: "Something went wrong!" });
 });
-// app.listen(PORT, () => {
-//   console.log(`✅ Server running on port ${PORT}`);
-//   console.log(`🔗 http://localhost:${PORT}`);
-// });
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+    console.log(`✅ Server running on port ${PORT}`);
+    console.log(`🔗 http://localhost:${PORT}`);
+});
 exports.default = app;

@@ -19,21 +19,31 @@ const pool = new pg_1.Pool({ connectionString: process.env.DATABASE_URL });
 function enrollUserHandler(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
         const { email, batchId } = req.body;
+        // Validate input
         if (!email || !batchId) {
             res.status(400).json({ message: "Missing email or batch ID" });
             return;
         }
         try {
+            // Optional: check if batchId exists in batches table
+            const batchCheck = yield pool.query("SELECT id FROM batches WHERE id = $1", [batchId]);
+            if (batchCheck.rowCount === 0) {
+                res.status(404).json({ message: "Batch not found" });
+                return;
+            }
+            // Check if user already enrolled
             const existing = yield pool.query("SELECT * FROM enrollments WHERE user_email = $1 AND batch_id = $2", [email, batchId]);
             if (existing.rows.length > 0) {
                 res.status(409).json({ message: "Already enrolled" });
                 return;
             }
+            // Insert enrollment record
             yield pool.query("INSERT INTO enrollments (user_email, batch_id) VALUES ($1, $2)", [email, batchId]);
             res.status(201).json({ message: "Enrolled successfully" });
         }
         catch (error) {
-            res.status(500).json({ message: "Error enrolling", error });
+            console.error("Enroll error:", error);
+            res.status(500).json({ message: "Error enrolling", error: error.message });
         }
     });
 }

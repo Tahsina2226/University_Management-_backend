@@ -1,10 +1,23 @@
 import { Request, Response } from "express";
 import pool from "../db";
 
-// ✅ Get All Routines
 export const getRoutines = async (req: Request, res: Response) => {
+  const department = req.query.department as string | undefined;
+
   try {
-    const result = await pool.query("SELECT * FROM routines ORDER BY id DESC");
+    let result;
+    if (department) {
+      result = await pool.query(
+        `SELECT r.* FROM routines r
+         JOIN batches b ON r.batch_id = b.id
+         WHERE b.department = $1
+         ORDER BY r.id DESC`,
+        [department]
+      );
+    } else {
+      result = await pool.query("SELECT * FROM routines ORDER BY id DESC");
+    }
+
     res.json(result.rows);
   } catch (err: any) {
     console.error("getRoutines error:", err.message);
@@ -12,7 +25,6 @@ export const getRoutines = async (req: Request, res: Response) => {
   }
 };
 
-// ✅ Create Routine
 export const createRoutine = async (req: Request, res: Response) => {
   const { course_name, day, time, room, batch_id } = req.body;
   try {
@@ -27,13 +39,12 @@ export const createRoutine = async (req: Request, res: Response) => {
   }
 };
 
-// ✅ Update Routine
 export const updateRoutine = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { course_name, day, time, room, batch_id } = req.body;
   try {
     const result = await pool.query(
-      "UPDATE routines SET course_name = $1, day = $2, time = $3, room = $4, batch_id = $5 WHERE id = $6 RETURNING *",
+      "UPDATE routines SET course_name=$1, day=$2, time=$3, room=$4, batch_id=$5 WHERE id=$6 RETURNING *",
       [course_name, day, time, room, batch_id, id]
     );
     if (result.rows.length === 0) {
@@ -47,7 +58,6 @@ export const updateRoutine = async (req: Request, res: Response) => {
   }
 };
 
-// ✅ Delete Routine
 export const deleteRoutine = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
